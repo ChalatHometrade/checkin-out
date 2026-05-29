@@ -195,14 +195,6 @@ textarea:focus {
   box-shadow: 0 12px 24px rgba(111, 77, 50, 0.22);
 }
 
-.privacy-note {
-  margin: -4px 0 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-  line-height: 1.45;
-  text-align: center;
-}
-
 .records-card {
   margin-top: 16px;
   padding: 14px;
@@ -279,12 +271,6 @@ textarea:focus {
   line-height: 1.5;
   overflow-wrap: anywhere;
   white-space: pre-line;
-}
-
-.record-location {
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 800;
 }
 
 .empty-state {

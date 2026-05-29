@@ -679,28 +679,9 @@ function renderTodayRecords() {
         </div>
       </div>
       <div class="record-note">${escapeHtml(record.note || "ไม่มี note")}</div>
-      ${renderLocationSummary(record)}
     `;
     elements.recordsList.appendChild(item);
   });
-}
-
-function renderLocationSummary(record) {
-  if (!record.locationStatus) {
-    return "";
-  }
-
-  const statusText = record.locationStatus === "IN_RANGE"
-    ? "อยู่ในพื้นที่ร้าน"
-    : "อยู่นอกพื้นที่ร้าน";
-  const hasDistance = record.distanceFromShop !== "" &&
-    record.distanceFromShop !== undefined &&
-    record.distanceFromShop !== null;
-  const distanceText = hasDistance
-    ? ` · ${escapeHtml(record.distanceFromShop)} ม.`
-    : "";
-
-  return `<div class="record-location">ตำแหน่ง: ${statusText}${distanceText}</div>`;
 }
 
 function getEmployees() {
