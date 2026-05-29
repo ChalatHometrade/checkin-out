@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบเข้า-ออกงาน | DÈ TREE CAFE</title>
+  <meta name="theme-color" content="#3f291b">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <h1>ระบบเข้า-ออกงาน</h1>
+        <p>DÈ TREE CAFE</p>
+      </div>
+      <button class="owner-button" id="openOwnerModal" type="button">แก้ไขชื่อพนักงาน</button>
+    </header>
+
+    <main>
+      <section class="panel">
+        <div class="tab-list" role="tablist" aria-label="Attendance actions">
+          <button class="tab-button active" id="checkInTab" type="button" role="tab" aria-selected="true" data-tab="checkIn">เข้างาน</button>
+          <button class="tab-button" id="checkOutTab" type="button" role="tab" aria-selected="false" data-tab="checkOut">ออกงาน</button>
+        </div>
+
+        <form class="attendance-form active" id="checkInForm" data-type="checkIn">
+          <div class="field-group">
+            <label for="checkInEmployee">ชื่อพนักงาน</label>
+            <select id="checkInEmployee" name="employeeName" required>
+              <option value="">เลือกชื่อพนักงาน</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="checkInNote">Note</label>
+            <textarea id="checkInNote" name="note" rows="4" placeholder="เช่น ลาเช้า 30 นาที"></textarea>
+          </div>
+
+          <button class="submit-button" type="submit">ยืนยันเข้างาน</button>
+          <p class="privacy-note">ระบบจะตรวจสอบตำแหน่งเฉพาะตอนกดเข้างาน/ออกงานเท่านั้น</p>
+        </form>
+
+        <form class="attendance-form" id="checkOutForm" data-type="checkOut">
+          <div class="field-group">
+            <label for="checkOutEmployee">ชื่อพนักงาน</label>
+            <select id="checkOutEmployee" name="employeeName" required>
+              <option value="">เลือกชื่อพนักงาน</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="checkOutNote">Note</label>
+            <textarea id="checkOutNote" name="note" rows="4" placeholder="เช่น เลิกงานตอน 15.00 / ใช้รถทั้งหมด 3 ครั้ง"></textarea>
+          </div>
+
+          <button class="submit-button checkout" type="submit">ยืนยันออกงาน</button>
+          <p class="privacy-note">ระบบจะตรวจสอบตำแหน่งเฉพาะตอนกดเข้างาน/ออกงานเท่านั้น</p>
+        </form>
+      </section>
+
+      <section class="records-card" aria-live="polite">
+        <div class="section-heading">
+          <h2>รายการวันนี้</h2>
+          <span id="todayLabel"></span>
+        </div>
+        <div id="recordsList" class="records-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="modal-backdrop" id="ownerModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ownerModalTitle">
+      <div class="modal-header">
+        <h2 id="ownerModalTitle">จัดการพนักงาน</h2>
+        <button class="close-button" id="closeOwnerModal" type="button" aria-label="ปิด">×</button>
+      </div>
+
+      <form id="ownerForm">
+        <div class="owner-mode-tabs" role="tablist" aria-label="Employee management modes">
+          <button type="button" class="owner-mode-button active" data-owner-mode="add">เพิ่มพนักงาน</button>
+          <button type="button" class="owner-mode-button" data-owner-mode="rename">แก้ไขชื่อ</button>
+          <button type="button" class="owner-mode-button" data-owner-mode="delete">ลบพนักงาน</button>
+        </div>
+
+        <div class="field-group">
+          <label for="ownerPasscode">รหัสเจ้าของร้าน</label>
+          <input id="ownerPasscode" name="ownerPasscode" type="password" inputmode="numeric" autocomplete="off">
+        </div>
+
+        <div id="addEmployeeFields">
+          <div class="field-group">
+            <label for="newEmployeeToAdd">ชื่อพนักงานใหม่</label>
+            <input id="newEmployeeToAdd" name="newEmployeeToAdd" type="text" autocomplete="off" placeholder="กรอกชื่อพนักงานใหม่">
+          </div>
+        </div>
+
+        <div id="renameEmployeeFields" hidden>
+          <div class="field-group">
+            <label for="oldEmployeeName">เลือกพนักงานเดิม</label>
+            <select id="oldEmployeeName" name="oldEmployeeName">
+              <option value="">เลือกชื่อพนักงาน</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="newEmployeeName">ชื่อใหม่</label>
+            <input id="newEmployeeName" name="newEmployeeName" type="text" autocomplete="off" placeholder="กรอกชื่อใหม่">
+          </div>
+        </div>
+
+        <div id="deleteEmployeeFields" hidden>
+          <div class="field-group">
+            <label for="employeeToDelete">เลือกพนักงานที่ต้องการลบ</label>
+            <select id="employeeToDelete" name="employeeToDelete">
+              <option value="">เลือกชื่อพนักงาน</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="submit-button" id="ownerSubmitButton" type="submit">เพิ่มพนักงาน</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js?v=20260529-gps-2"></script>
+</body>
+</html>
