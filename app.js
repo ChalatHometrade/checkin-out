@@ -234,7 +234,7 @@ function applyLocationInfo(record, locationInfo) {
 }
 
 async function checkShopLocation() {
-  const position = await getCurrentPosition();
+  const position = await getCurrentPositionWithFallback();
   const distanceFromShop = calculateDistanceMeters(
     position.coords.latitude,
     position.coords.longitude,
@@ -253,19 +253,29 @@ async function checkShopLocation() {
   };
 }
 
-function getCurrentPosition() {
+function getCurrentPositionWithFallback() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("เบราว์เซอร์นี้ไม่รองรับการตรวจสอบตำแหน่ง"));
+      reject(new Error("GEOLOCATION_NOT_SUPPORTED"));
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => resolve(position),
-      (error) => reject(error),
+      () => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => resolve(position),
+          (fallbackError) => reject(fallbackError),
+          {
+            enableHighAccuracy: false,
+            timeout: 8000,
+            maximumAge: 30000
+          }
+        );
+      },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 12000,
         maximumAge: 0
       }
     );
@@ -273,19 +283,23 @@ function getCurrentPosition() {
 }
 
 function getGeolocationErrorMessage(error) {
+  if (error && error.message === "GEOLOCATION_NOT_SUPPORTED") {
+    return "อุปกรณ์นี้ไม่รองรับการตรวจสอบตำแหน่ง";
+  }
+
   if (error && error.code === error.PERMISSION_DENIED) {
-    return "กรุณาอนุญาตการเข้าถึงตำแหน่งเพื่อเช็คเข้า-ออกงาน";
+    return "กรุณาอนุญาตการเข้าถึงตำแหน่งให้ Safari/Chrome แล้วลองใหม่อีกครั้ง";
   }
 
   if (error && error.code === error.POSITION_UNAVAILABLE) {
-    return "ตรวจสอบตำแหน่งไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+    return "ตรวจสอบตำแหน่งไม่สำเร็จ กรุณาเปิด Location และลองยืนใกล้หน้าร้านหรือบริเวณที่สัญญาณดีขึ้น";
   }
 
   if (error && error.code === error.TIMEOUT) {
-    return "ตรวจสอบตำแหน่งไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+    return "ตรวจสอบตำแหน่งไม่สำเร็จ กรุณาเปิด Location และลองยืนใกล้หน้าร้านหรือบริเวณที่สัญญาณดีขึ้น";
   }
 
-  return "ตรวจสอบตำแหน่งไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
+  return "ตรวจสอบตำแหน่งไม่สำเร็จ กรุณาเปิด Location และลองยืนใกล้หน้าร้านหรือบริเวณที่สัญญาณดีขึ้น";
 }
 
 function calculateDistanceMeters(lat1, lng1, lat2, lng2) {
