@@ -402,6 +402,8 @@ function syncAttendanceInBackground(record, type) {
     employeeName: record.employeeName,
     checkInTime: type === "checkIn" ? record.checkInTime : "",
     checkOutTime: type === "checkOut" ? record.checkOutTime : "",
+    eventType: type,
+    eventNote: type === "checkIn" ? record.checkInNote : record.checkOutNote,
     note: record.note,
     updatedAt: record.updatedAt,
     latitude: record.latitude,
@@ -411,7 +413,11 @@ function syncAttendanceInBackground(record, type) {
     locationStatus: record.locationStatus
   };
 
-  apiPost(payload).catch((error) => {
+  apiPost(payload).then((data) => {
+    if (data && data.success === true && data.notification && data.notification.success === false) {
+      showToast("Saved to Google Sheet, but Discord notification failed: " + (data.notification.error || ""), "error");
+    }
+  }).catch((error) => {
     if (error && error.message) {
       alert(error.message);
     }

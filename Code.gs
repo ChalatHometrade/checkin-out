@@ -1,6 +1,8 @@
 const TIMEZONE = "Asia/Bangkok";
 const OWNER_PASSCODE = "1111";
 const LINE_CHANNEL_ACCESS_TOKEN = "2x88i+nULL4pVHWhbtmVCDekCB8fzFfCYbjHaVtQq79ZzOSO4Tt1m1EagPVxowdL1A1x0AoOW3i10ixsR9gw8D+2NYDPj18ishfM7VHumwjZN8kfIoc9S8O4onFu0HA/VOOXBAhQyWmo8/hX1p0CrAdB04t89/1O/w1cDnyilFU=";
+const USE_LINE_NOTIFICATION = false;
+const USE_DISCORD_NOTIFICATION = true;
 
 const SHEET_NAMES = {
   ATTENDANCE: "Attendance",
@@ -182,32 +184,106 @@ function saveAttendance(payload) {
     ]);
   }
 
-  const lineMessage = buildAttendanceLineMessage({
+  const notificationPayload = {
     date,
     employeeName,
     checkInTime,
     checkOutTime,
     oldCheckOutTime,
+    eventType: payload.eventType || (checkOutTime ? "checkOut" : "checkIn"),
+    eventNote: payload.eventNote,
     note,
     latitude: location.latitude,
     longitude: location.longitude,
     accuracy: location.accuracy,
     distanceFromShop: location.distanceFromShop,
     locationStatus: location.locationStatus
-  });
+  };
+  const notification = sendAttendanceNotification(notificationPayload);
 
-  if (lineMessage) {
+  return {
+    success: true,
+    message: "Attendance saved successfully",
+    notification
+  };
+}
+
+function sendAttendanceNotification(payload) {
+  if (USE_DISCORD_NOTIFICATION) {
+    const discordMessage = buildAttendanceDiscordMessage(payload);
+
+    if (!discordMessage) {
+      return {
+        provider: "discord",
+        attempted: false,
+        success: false,
+        error: "",
+        code: ""
+      };
+    }
+
+    try {
+      const result = sendDiscordNotification(discordMessage);
+      return {
+        provider: "discord",
+        attempted: true,
+        success: result.success,
+        error: result.error || "",
+        code: result.code || ""
+      };
+    } catch (error) {
+      Logger.log("Discord notification error: " + error.message);
+      return {
+        provider: "discord",
+        attempted: true,
+        success: false,
+        error: error.message,
+        code: ""
+      };
+    }
+  }
+
+  if (USE_LINE_NOTIFICATION) {
+    const lineMessage = buildAttendanceLineMessage(payload);
+
+    if (!lineMessage) {
+      return {
+        provider: "line",
+        attempted: false,
+        success: false,
+        error: "",
+        code: ""
+      };
+    }
+
     try {
       const lineResult = sendLinePushMessageToOwners(lineMessage);
       Logger.log("LINE notification result: " + JSON.stringify(lineResult));
+      return {
+        provider: "line",
+        attempted: true,
+        success: lineResult.success,
+        error: lineResult.error || "",
+        code: ""
+      };
     } catch (lineError) {
       Logger.log("LINE notification error: " + lineError.message);
+      return {
+        provider: "line",
+        attempted: true,
+        success: false,
+        error: lineError.message,
+        code: ""
+      };
     }
   }
 
   return {
-    success: true,
-    message: lineMessage
+    provider: "",
+    attempted: false,
+    success: false,
+    error: "",
+    code: ""
   };
 }
 
@@ -255,6 +331,107 @@ function buildAttendanceLineMessage(payload) {
   }
 
   return "";
+}
+
+function buildAttendanceDiscordMessage(payload) {
+  const eventType = payload.eventType || (payload.checkOutTime ? "checkOut" : "checkIn");
+  const isCheckIn = eventType === "checkIn";
+  const location = normalizeLocationPayload(payload);
+
+  const title = isCheckIn ? "✅ เข้างาน" : "📌 ออกงาน";
+  const timeLabel = isCheckIn ? "เวลาเข้า" : "เวลาออก";
+  const timeValue = isCheckIn ? payload.checkInTime : payload.checkOutTime;
+  const note = String(payload.eventNote || "").trim() || "-";
+
+  let locationText = "ไม่ทราบตำแหน่ง";
+  if (location.locationStatus === "IN_RANGE") {
+    locationText = "อยู่ในพื้นที่ร้าน";
+  } else if (location.locationStatus === "OUT_OF_RANGE") {
+    locationText = "อยู่นอกพื้นที่ร้าน";
+  }
+
+  const distanceText = location.distanceFromShop !== "" && location.distanceFromShop !== null && location.distanceFromShop !== undefined
+    ? location.distanceFromShop + " เมตร"
+    : "- เมตร";
+
+  const accuracyText = location.accuracy !== "" && location.accuracy !== null && location.accuracy !== undefined
+    ? "±" + location.accuracy + " เมตร"
+    : "±- เมตร";
+
+  return [
+    title,
+    "ชื่อ: " + (payload.employeeName || "-"),
+    "วันที่: " + (payload.date || "-"),
+    timeLabel + ": " + (timeValue || "-"),
+    "หมายเหตุ:",
+    note,
+    "ตำแหน่ง: " + locationText,
+    "ระยะห่างจากร้าน: " + distanceText,
+    "ความคลาดเคลื่อน GPS: " + accuracyText
+  ].join("\n");
+}
+
+function getDiscordWebhookUrl() {
+  return PropertiesService
+    .getScriptProperties()
+    .getProperty("DISCORD_WEBHOOK_URL") || "";
+}
+
+function hasDiscordWebhook() {
+  return Boolean(getDiscordWebhookUrl());
+}
+
+function sendDiscordNotification(message) {
+  const webhookUrl = getDiscordWebhookUrl();
+
+  if (!webhookUrl) {
+    Logger.log("Discord webhook: missing");
+    return {
+      success: false,
+      error: "Missing DISCORD_WEBHOOK_URL"
+    };
+  }
+
+  Logger.log("Discord webhook: exists");
+
+  const payload = {
+    content: String(message || "")
+  };
+  const response = UrlFetchApp.fetch(webhookUrl, {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+  const responseCode = response.getResponseCode();
+  const responseBody = response.getContentText();
+
+  Logger.log("Discord response code: " + responseCode);
+  Logger.log("Discord response body: " + responseBody);
+
+  if ((responseCode >= 200 && responseCode <= 299) || responseCode === 204) {
+    return {
+      success: true,
+      code: responseCode,
+      body: responseBody
+    };
+  }
+
+  return {
+    success: false,
+    code: responseCode,
+    body: responseBody,
+    error: "Discord webhook failed: " + responseCode + " " + responseBody
+  };
+}
+
+function runTestDiscordStatus() {
+  Logger.log(hasDiscordWebhook() ? "Discord webhook: exists" : "Discord webhook: missing");
+}
+
+function runTestDiscordNotification() {
+  const result = sendDiscordNotification("Test notification from DÈ TREE CAFE attendance system ✅");
+  Logger.log(JSON.stringify(result));
 }
 
 function normalizeLocationPayload(payload) {
