@@ -415,7 +415,11 @@ function syncAttendanceInBackground(record, type) {
 
   apiPost(payload).then((data) => {
     if (data && data.success === true && data.notification && data.notification.success === false) {
-      showToast("Saved to Google Sheet, but Discord notification failed: " + (data.notification.error || ""), "error");
+      if (data.notification.queued === true) {
+        showToast("บันทึกเวลาแล้ว แต่ Discord ยังไม่สำเร็จ ระบบจะส่งซ้ำอัตโนมัติ", "error");
+      } else {
+        showToast("บันทึกเวลาแล้ว แต่ Discord แจ้งเตือนไม่สำเร็จ", "error");
+      }
     }
   }).catch((error) => {
     if (error && error.message) {
